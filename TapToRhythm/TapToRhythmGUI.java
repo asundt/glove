@@ -1,6 +1,8 @@
 /**
- * Created by Alex on 5/19/16.
+ * Created by Alex on 5/19/16. This class sets up a GUI for the TapToRhythm Application, which
+ * allows the user to choose a tempo and precision, and then
  */
+package TapToRhythm;
 
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -22,20 +24,23 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-public class TapToRhythm extends Application {
+
+public class TapToRhythmGUI extends Application {
     private GridPane root = new GridPane();
     private final static int STARTTIME = 4;
     private final Slider tempoSlider = new Slider(40, 160, 120);
     private final Label tempoLabel = new Label("Choose a tempo:");
     private final Label tempoValue = new Label(
             Integer.toString((int) Math.round(tempoSlider.getValue())));
-    private final Label precisionLabel = new Label("Precision:");
+    private final Label precisionLabel = new Label("Note Precision:");
     private ToggleGroup toggleGroup = new ToggleGroup();
     private int countdownTime = STARTTIME;
     private double period;
     private double tempo;
     private double precision;
     private Timeline timeline;
+    private final static Audio click = new Audio("click.wav");
+    private TapListener tapListener;
 
     public static void main(String[] args) {
         launch(args);
@@ -44,14 +49,18 @@ public class TapToRhythm extends Application {
     @Override
     public void start(Stage primaryStage) {
         setup();
-        Scene scene = new Scene(root, 300, 250);
+        Scene scene = new Scene(root, 350, 250);
         primaryStage.setTitle("TapToRhythm");
         primaryStage.setScene(scene);
         primaryStage.show();
+        tapListener = new TapListener(scene);
     }
 
+    /* Sets up starting screen (with tempo slider and precision selection).
+     * Call whenever want to return to start screen. */
     private void setup() {
         root.getChildren().clear();
+        root.getColumnConstraints().clear();
         root.setPadding(new Insets(10, 10, 10, 10));
         root.setHgap(40);
         root.setVgap(10);
@@ -77,14 +86,14 @@ public class TapToRhythm extends Application {
         root.add(btn, 5, 5);
         countdownTime = STARTTIME;
         RadioButton rb8 = new RadioButton("1/8");
-        rb8.setUserData(1/8);
+        rb8.setUserData((double) 1/8);
         rb8.setToggleGroup(toggleGroup);
         RadioButton rb16 = new RadioButton("1/16");
-        rb16.setUserData(1/16);
+        rb16.setUserData((double) 1/16);
         rb16.setToggleGroup(toggleGroup);
         rb16.setSelected(true);
         RadioButton rb32 = new RadioButton("1/32");
-        rb32.setUserData(1/32);
+        rb32.setUserData((double) 1/32);
         rb32.setToggleGroup(toggleGroup);
         HBox rb = new HBox(10, precisionLabel, rb8, rb16, rb32);
         root.add(rb, 0, 3, 6, 1);
@@ -98,6 +107,7 @@ public class TapToRhythm extends Application {
             tempo = Math.round(tempoSlider.getValue());
             period = 60 / tempo;
             root.getChildren().clear();
+            root.setAlignment(Pos.CENTER);
             ColumnConstraints column0 = new ColumnConstraints();
             column0.setHalignment(HPos.CENTER);
             root.getColumnConstraints().add(column0);
@@ -105,6 +115,7 @@ public class TapToRhythm extends Application {
             Button btn = new Button();
             btn.setText("Reset");
             btn.setOnAction(new ResetEventHandler());
+            btn.focusTraversableProperty().setValue(false);
             root.add(btn, 0, 2);
             countdownTime = STARTTIME;
         }
@@ -114,8 +125,9 @@ public class TapToRhythm extends Application {
             txt.setFont(new Font(20));
             root.add(txt, 0, 0);
             txt.setText(Integer.toString(countdownTime));
+            click.playClip();
             timeline = new Timeline();
-            timeline.setCycleCount(4);
+            timeline.setCycleCount(Timeline.INDEFINITE);
             timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(period),
                     new CountdownEvent(txt)));
             timeline.playFromStart();
@@ -129,11 +141,17 @@ public class TapToRhythm extends Application {
 
             @Override
             public void handle (ActionEvent event){
+                click.playClip();
                 countdownTime -= 1;
-                txt.setText(Integer.toString(countdownTime));
-                if (countdownTime == 0) {
+                if (countdownTime > 0) {
+                    txt.setText(Integer.toString(countdownTime));
+                } else if (countdownTime == 0) {
                     txt.setText("Tap!");
+                    tapListener.start();
+                } else if (countdownTime <= -8) {
                     timeline.stop();
+                    tapListener.stop();
+                    tapListener.analyze(tempo, precision);
                 }
             }
         }
@@ -144,6 +162,7 @@ public class TapToRhythm extends Application {
         @Override
         public void handle(ActionEvent event) {
             timeline.stop();
+            tapListener.stop();
             setup();
         }
     }
