@@ -1,6 +1,7 @@
 /**
  * Created by Alex on 5/19/16. This class sets up a GUI for the TapToRhythm Application, which
- * allows the user to choose a tempo and precision, and then
+ * allows the user to choose a tempo and precision, and then save it to a file or get output in
+ * notation form
  */
 package TapToRhythm;
 
@@ -23,6 +24,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import java.io.IOException;
+import java.util.LinkedList;
 
 
 public class TapToRhythmGUI extends Application {
@@ -41,6 +44,7 @@ public class TapToRhythmGUI extends Application {
     private Timeline timeline;
     private final static Audio click = new Audio("click.wav");
     private TapListener tapListener;
+    private LinkedList<Tap> taps;
 
     public static void main(String[] args) {
         launch(args);
@@ -99,6 +103,40 @@ public class TapToRhythmGUI extends Application {
         root.add(rb, 0, 3, 6, 1);
     }
 
+    private void setupSave() {
+        root.getChildren().clear();
+        root.getColumnConstraints().clear();
+        Label label1 = new Label("File Name:");
+        TextField name = new TextField ();
+        HBox field = new HBox(label1, name);
+        field.setSpacing(10);
+        root.add(field, 0, 0, 2, 1);
+        Label error = new Label();
+        root.add(error, 0, 1, 2, 1);
+        Button save = new Button("Save");
+        save.setOnAction((ActionEvent e) -> {
+            if (name.getText() != null && !name.getText().isEmpty()) {
+                FileWriter fileWriter = new FileWriter(name.getText());
+                try {
+                    fileWriter.writeToFile(tempo, taps);
+                    setup();
+                } catch (IOException err) {
+                    error.setText("Error saving, choose another file name");
+                }
+            } else {
+                error.setText("Please enter a file name");
+            }
+        });
+        Button reset = new Button();
+        reset.setText("Reset");
+        reset.setOnAction(new ResetEventHandler());
+        reset.focusTraversableProperty().setValue(false);
+        HBox btns = new HBox(40, reset, save);
+        root.add(btns, 0, 2, 2, 1);
+        //root.setGridLinesVisible(true);
+        btns.setAlignment(Pos.CENTER);
+    }
+
     private class StartEventHandler implements EventHandler<ActionEvent> {
 
         @Override
@@ -125,7 +163,6 @@ public class TapToRhythmGUI extends Application {
             txt.setFont(new Font(20));
             root.add(txt, 0, 0);
             txt.setText(Integer.toString(countdownTime));
-            click.playClip();
             timeline = new Timeline();
             timeline.setCycleCount(Timeline.INDEFINITE);
             timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(period),
@@ -142,7 +179,6 @@ public class TapToRhythmGUI extends Application {
             @Override
             public void handle (ActionEvent event){
                 click.playClip();
-                countdownTime -= 1;
                 if (countdownTime > 0) {
                     txt.setText(Integer.toString(countdownTime));
                 } else if (countdownTime == 0) {
@@ -150,20 +186,28 @@ public class TapToRhythmGUI extends Application {
                     tapListener.start();
                 } else if (countdownTime <= -8) {
                     timeline.stop();
-                    tapListener.stop();
+                    taps = tapListener.stop();
                     tapListener.analyze(tempo, precision);
+                    setupSave();
                 }
+                countdownTime -= 1;
             }
         }
     }
 
     private class ResetEventHandler implements EventHandler<ActionEvent> {
-
         @Override
         public void handle(ActionEvent event) {
             timeline.stop();
             tapListener.stop();
             setup();
+        }
+    }
+
+    private class SaveEventHandler implements EventHandler<ActionEvent> {
+        @Override
+        public void handle(ActionEvent event) {
+
         }
     }
 }

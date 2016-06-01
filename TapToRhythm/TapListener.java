@@ -36,23 +36,6 @@ public class TapListener {
         }
     }
 
-    private class Tap {
-        long startTime;
-        long endTime;
-        long elapsedTime;
-        boolean hit;
-
-        public Tap(boolean hit) {
-            startTime = System.nanoTime();
-            this.hit = hit;
-        }
-
-        public void end() {
-            endTime = System.nanoTime();
-            elapsedTime = endTime - startTime;
-        }
-    }
-
     private boolean listenerActive = false;
     LinkedList<Tap> taps;
     long listenStartTime;
@@ -92,16 +75,23 @@ public class TapListener {
     }
 
     public void analyze(double tempo, double precision) {
-        long baseUnit = (long) ((60 / tempo) * 4 * precision * Math.pow(10, 9)); //in nanoseconds
-        for (Tap tap: taps) {
+        long baseUnit = Math.round(((60 / tempo) * 4 * precision * Math.pow(10, 9))); //in nanoseconds
+        boolean skip = false;
+        for (Tap tap : taps) {
             if (tap.hit) {
-                int length = Math.round(tap.elapsedTime / baseUnit);
-                if (length == 0) {
-                    length = 1;
+                skip = false;
+                int length = (int) Math.ceil((float) tap.elapsedTime / baseUnit);
+                if (length > Math.round((float) tap.elapsedTime / baseUnit)) {
+                    skip = true;
                 }
                 System.out.println("Hold " + length);
-            } else if (Math.round(tap.elapsedTime / baseUnit) > 0) {
-                System.out.println("Rest " + Math.round(tap.elapsedTime / baseUnit));
+            } else if (skip) {
+                if (Math.round((float) tap.elapsedTime / baseUnit) > 1) {
+                    System.out.println("Rest " + (Math.round((float) tap.elapsedTime / baseUnit) - 1));
+                }
+                skip = false;
+            } else if (Math.round((float) tap.elapsedTime / baseUnit) > 0) {
+                System.out.println("Rest " + Math.round((float) tap.elapsedTime / baseUnit));
             }
         }
     }
